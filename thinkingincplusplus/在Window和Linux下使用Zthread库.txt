@@ -1,0 +1,102 @@
+在Window和Linux下使用Zthread库
+ZThread库是一个开源的跨平台高级面向对象的线性和sycnchronization 库，以运行POSIX 和Win32 系统中的C++程序。
+
+ZThread库的主页：http://zthread.sourceforge.net
+
+最新版本Zthread远吗下载地址: http://prdownloads.sourceforge.net/zthread/ZThread-2.3.2.tar.gz
+
+ZThread文档：http://zthread.sourceforge.net/documentation.html
+
+一、在Windows下使用ZThread
+
+首先，下载ZThread，解压到某个目录下，我解压到D:\libs\ZThread-2.3.2\中。
+
+方法1：包含源文件直接编译(不推荐)
+
+1.在vs2010中，新建一个新的win32 控制台项目，选择空项目。
+
+2.在源目录下新建一个main.cpp文件，在http://zthread.sourceforge.net/html/classZThread_1_1Thread.html  中复制一段示例代码拷贝到main.cpp中。
+
+3.在项目的配置属性中，VC++目录的包含目录中增加ZThread的头文件目录，我这里是：D:\libs\ZThread-2.3.2\include。配置属性分DEBUG和RELEASE两个，默认选择的是DEBUG配置，但最好两个都配置一下，否则生成RELEASE版本时会报错
+
+4.在项目中新建一个文件夹，名字随意，我的叫ZThread，然后选择这个文件夹，右键选择添加->现有项，将ZThread解压目录中的src目录的所有cxx文件都加入到这个目录中
+
+然后现在可以编译了，正常来说，应该编译通过并且成功启动程序了。
+
+但也有可能出现一些错误：
+
+错误一：error C2664: “GetModuleHandleW”: 不能将参数 1 从“const char [13]”转换为“LPCWSTR”
+
+这个是由于vs2010的项目设置默认采用了unicode字符集导致的，可以在项目属性中将字符集改为多字节即可，也可以在GetModuleHandle函数的字符串参数加上_T()包含，改为GetModuleHandle(_T("Kernel32.dll"));
+
+ 
+
+ 
+
+方法2：编译成静态库
+
+1.在vs2010中，新建一个新的win32 控制台项目,我取名为ZThread.，项目类型选择为静态库。
+
+2.在项目的配置属性中，VC++目录的包含目录中增加ZThread的头文件目录，我这里是：D:\libs\ZThread-2.3.2\include。配置属性分DEBUG和RELEASE两个，默认选择的是DEBUG配置，但最好两个都配置一下，否则生成RELEASE版本时会报错
+
+3.在项目源目录中，右键选择添加->现有项，将ZThread解压目录中的src目录的所有cxx文件都加入到这个目录中
+
+然后现在可以编译了，正常来说，应该编译通过并且成功生成了ZThread.lib静态库。
+
+但也有可能出现一些错误：
+
+错误一：error C2664: “GetModuleHandleW”: 不能将参数 1 从“const char [13]”转换为“LPCWSTR”
+
+这个是由于vs2010的项目设置默认采用了unicode字符集导致的，可以在项目属性中将字符集改为多字节即可，也可以在GetModuleHandle函数的字符串参数加上_T()包含，改为GetModuleHandle(_T("Kernel32.dll"));
+
+静态库的使用方法是：
+
+在我们的程序的工程属性的VC++目录的包含目录中，增加ZThread的头文件目录。
+
+在程序代码中，增加#pragma comment(lib, “ZThread.lib”)声明,同时，需要将ZThread.lib文件放在我们的源目录下，跟代码放一起。
+
+ 
+
+方法3,编译成动态库DLL
+
+跟方法2差不多，只不过项目类型选择为动态库。其他步骤一样，不再详述，编译成功后，会生成ZThread.lib, ZThread.dll。
+
+使用动态库的方法跟静态库一致，不同的是，使用动态库的程序在运行时需要ZThread.dll文件。
+
+至此，静态链接库和动态链接库我们就说完了，我们做一下对比和补充：
+
+两个lib文件的不同
+
+我们发现，无论是静态链接库还是动态链接库，最后都有lib文件，那么两者区别是什么呢？其实，两个是完全不一样的东西。两个ZThread.lib大小都不同，静态库对应的lib文件叫静态库，动态库对应的lib文件叫导入库。实际上静态库本身就包含了实际执行代码、符号表等等，而对于导入库而言，其实际的执行代码位于动态库中，导入库只包含了地址符号表等，确保程序找到对应函数的一些基本地址信息。
+
+对于静态链接库，我们在编译和链接的时候已经将所有的代码都导入进来，因此，当生成可执行文件以后，可执行文件包含所有的代码。因此，在可执行文件运行时就不再需要静态库了，这也是为什么我们删掉ZThread.lib程序照样执行；而对于动态链接库，实际上，可执行文件不包含DLL中的内容，只是通过导入库（.lib）知道了相应的地址信息，因此，可执行文件在运行时动态得去加载DLL，这也是为什么我们删掉ZThread.dll后程序就不能执行了。
+
+对于DLL，我们是可以不要lib文件的。如果不要lib文件，我们可以通过函数指针的使用达到我们的目的。
+
+ 
+
+二、在Linux下使用ZThread
+
+在linux下，直接通过三部曲就可以完成了，非常简单
+
+./configure
+
+./make
+
+./make install
+
+如果在make时遇到错误：
+
+../include/zthread/Guard.h: In destructor 'ZThread::Guard<LockType, LockingPolicy>::~Guard()':
+
+../include/zthread/Guard.h:494: error: there are no arguments to 'isDisabled' that depend on a template parameter, so a declaration of 'isDisabled' must be available
+
+只需 先export CXXFLAGS=-fpermissive，然后再执行
+
+./configure
+
+./make
+
+./make install
+
+就可以了

@@ -1,0 +1,67 @@
+跨平台线程库 ZThread
+分享到 新浪微博腾讯微博已用    +1 收藏+69
+ZThread 是一个 C++ 的跨平台线程开发包。
+
+zthread库的用法和Java的多线程很相似，名字都差不多，比如Thread，Runnable，^_^
+
+举个例子入门一下吧
+
+在zthread里有一个任务的概念，任务就是要做的一件事，任务是怎么定义呢？
+两件事要做：一、继承Runnable这个抽象类。 二、实现run接口
+Runnable在源代码中的定义如下：
+class Runnable{
+public:
+    virtual void run() = 0;
+    virual ~Runnable(){}
+}
+
+我们现在定义一个任务，这个任务用来数数吧
+
+//File: Counter.cpp
+#include <iostream>
+#include <zthread/Runnable.h>
+#include <zthread/Thread.h>
+
+using namespace std;
+using namespace ZThread;     // Zthread所有的变量，类等都在这个名字空间内
+
+class Counter : public Runnable
+{
+private:
+    int _id;                  // 任务的ID号
+    int _num;                 // 当前数到几
+public:
+    Counter(int id):_id(id){}
+    void run()                // 实现run函数
+    {
+        _num = 1;
+        while(_num <=50 )
+        {
+             cout <<_id << "  " << _num << endl; 
+             _num++;
+        }
+    }
+};
+
+int main()
+{
+    try
+    {
+        Thread t(new Counter());
+        
+    }
+    catch(Synchronization_Exception& e)
+    {
+        cerr << e.what() <<endl;
+    }
+}
+// end of file
+
+然后编译它
+g++ -o test Counter.cpp -lZThread
+最后边的一个选项是编译时候动态连接到libZThread库
+然后运行吧
+./test
+如果报错的话，按下边方式运行
+LD_LIBRARY_PATH=/usr/local/lib/
+这就是基本线程运行的例子了～～～

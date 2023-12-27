@@ -1,0 +1,203 @@
+zthread的使用9：生产者和消费者
+
+#include <zthread/guardedclass.h>
+#include <iostream>
+#pragma comment(lib,"ZThread_Z.lib")
+
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include "zthread/Thread.h"
+#include "zthread/Mutex.h"
+#include "zthread/Guard.h"
+#include "zthread/Condition.h"
+#include "zthread/ThreadedExecutor.h"
+using namespace ZThread;
+using namespace std;
+
+//上果酱
+class Jammer : public Runnable 
+{
+		//控制状态的成员变量
+        Mutex lock;
+		Condition butteredToastReady;
+		bool gotButteredToast;
+		int jammed;
+public:
+        Jammer() : butteredToastReady(lock) 
+		{
+			//当前没有面包
+		    gotButteredToast = false;
+			//上了果酱的面包个数为0
+			jammed = 0;
+        }
+	    //
+        void moreButteredToastReady() 
+		{
+			
+		     //上一个保护锁
+		    Guard<Mutex> g(lock);
+			//需要新的面包来上果酱
+			gotButteredToast = true;
+			//告诉想在可以上黄油了
+			butteredToastReady.signal();
+        }
+        void run() 
+		{
+				try 
+				{
+				    //若非中断
+				    while(!Thread::interrupted()) 
+					{
+						{
+							//上锁
+						    Guard<Mutex> g(lock);
+							//若没了黄油的面包
+							while(!gotButteredToast)
+							    //等待吧
+								butteredToastReady.wait();
+							//上了果酱的面包个数加1
+							++jammed;
+						}
+						cout << "涂果酱了" << jammed << endl;
+						{
+							//涂果酱了
+						    Guard<Mutex> g(lock);
+							//当前没了面包
+							gotButteredToast = false;
+						}
+			    	}
+             } 
+			catch(Interrupted_Exception&) 
+			{
+			     /* Exit */ 
+			}
+           
+		cout << "Jammer off" << endl;
+       }
+};
+
+// 上黄油
+class Butterer : public Runnable 
+{
+		//上黄油就不能涂果酱啦
+        Mutex lock;
+		//当然状态
+		Condition toastReady;
+		//引用计数
+		CountedPtr<Jammer> jammer;
+		//获取面包
+		bool gotToast;
+		//涂黄油的数目
+		int buttered;
+public:
+		Butterer(CountedPtr<Jammer>& j)
+		: toastReady(lock), jammer(j) 
+		{
+				//没有获得面包
+		        gotToast = false;
+				buttered = 0;
+		}
+	    //给我面包吧
+		void moreToastReady() 
+		{
+			    //上锁
+		        Guard<Mutex> g(lock);
+				gotToast = true;
+				//告知
+				toastReady.signal();
+		}
+        void run() 
+		{
+				try 
+				{
+						//若非中断
+				        while(!Thread::interrupted()) 
+						{
+							{
+								//上锁
+							    Guard<Mutex> g(lock);
+								while(!gotToast)
+									toastReady.wait();
+								++buttered;
+							}
+							cout << "涂黄油 " << buttered << endl;
+							jammer->moreButteredToastReady();
+							{
+								//上锁
+							    Guard<Mutex> g(lock);
+								gotToast = false;
+							}
+						}
+			  } 
+			catch(Interrupted_Exception&) { /* Exit */ }
+            cout << "Butterer off" << endl;
+  }
+};
+
+//烤制面包
+class Toaster : public Runnable 
+{
+    //对上黄油的引用计数	
+    CountedPtr<Butterer> butterer;
+	//面包的个数
+	int toasted;
+public:
+	 Toaster(CountedPtr<Butterer>& b) : butterer(b) 
+	{
+		 toasted = 0;
+	 }
+	void run() 
+	{
+			try 
+			{
+					//若非中断
+			        while(!Thread::interrupted()) 
+					{
+						Thread::sleep(rand()/(RAND_MAX/5)*100 +200);
+						// ...
+						// Create new toast
+						// ...
+						cout << "新烤制的面包 " << ++toasted << endl;
+						//
+						butterer->moreToastReady();
+					}
+			} 
+		     catch(Interrupted_Exception&) { /* Exit */ }
+			cout << "Toaster off" << endl;
+	 }
+};
+
+int main() 
+{
+  srand(time(0)); // Seed the random number generator
+  try 
+  {
+			cout << "Press <Return> to quit" << endl;
+			//开启一个上果酱的机器
+			CountedPtr<Jammer> jammer(new Jammer);
+			//启动上黄油
+			CountedPtr<Butterer> butterer(new Butterer(jammer));
+			//定义线程执行器
+			ThreadedExecutor executor;
+			//生产面包
+			executor.execute(new Toaster(butterer));
+			//上黄油
+			executor.execute(butterer);
+			//上果酱
+			executor.execute(jammer);
+			cin.get();
+			//中断
+			executor.interrupt();
+		    //.......
+			Mutex laco;
+			Condition c(laco);
+			c.broadcast();
+			c.signal();
+			c.wait();
+  } 
+  catch(Synchronization_Exception& e) 
+  {
+		cerr << e.what() << endl;
+  }
+}  
